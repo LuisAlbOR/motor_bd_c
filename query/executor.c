@@ -256,12 +256,12 @@ static int require_database_selected(void) {
 
 static void do_insert(const char *table, const char *value) {
     if (!catalog_table_exists(table)) {
-        executor_printf("Error: la tabla '%s' no existe.\n", table);
+        printf("Error: la tabla '%s' no existe.\n", table);
         return;
     }
 
     if (!global_bp) {
-        executor_printf("Error: Buffer Pool no inicializado.\n");
+        printf("Error: Buffer Pool no inicializado.\n");
         return;
     }
 
@@ -270,14 +270,14 @@ static void do_insert(const char *table, const char *value) {
     int fd = fm_open_table(full_table);
 
     if (fd < 0) {
-        executor_printf("Error al abrir tabla.\n");
+        printf("Error al abrir tabla.\n");
         return;
     }
 
     Page *page = buffer_fetch_page(global_bp, fd, 0);
 
     if (!page) {
-        executor_printf("Error: no se pudo cargar la página en el Buffer Pool.\n");
+        printf("Error: no se pudo cargar la página en el Buffer Pool.\n");
         buffer_invalidate_fd(global_bp, fd);
         close(fd);
         return;
@@ -297,7 +297,7 @@ static void do_insert(const char *table, const char *value) {
     int page_id = 0;
 
     if (page_append_mvcc_record(page, value, tx_id) != 0) {
-        executor_printf("Error: página llena.\n");
+        printf("Error: página llena.\n");
         buffer_unpin_page(global_bp, fd, 0, 0);
         buffer_invalidate_fd(global_bp, fd);
         close(fd);
@@ -326,14 +326,16 @@ static void do_insert(const char *table, const char *value) {
     buffer_invalidate_fd(global_bp, fd);
     close(fd);
 
-    executor_printf("Registro insertado en %s: %s\n", table, value);
+    printf("Registro insertado en %s: %s\n", table, value);
 }
 
 static void do_select(const char *table) {
     char line[512];
 
     if (!catalog_table_exists(table)) {
-        executor_printf("Error: la tabla '%s' no existe.\n", table);
+        snprintf(line, sizeof(line), "Error: la tabla '%s' no existe.\n", table);
+        printf("%s", line);
+        executor_append_output(line);
         return;
     }
 
@@ -580,7 +582,7 @@ static void do_update_where_id(const char *table, int id, const char *new_value)
     snprintf(full_table, sizeof(full_table), "%s/%s", current_database, table);
     int fd = fm_open_table(full_table);
     if (fd < 0) {
-        executor_printf("Error al abrir tabla.\n");
+        printf("Error al abrir tabla.\n");
         return;
     }
 
@@ -1007,7 +1009,7 @@ static int build_records_from_insert(const char *q, char *table) {
     TableMetadata *meta = catalog_get_table(table);
 
     if (!meta) {
-        executor_printf("Error: la tabla '%s' no existe.\n", table);
+        printf("Error: la tabla '%s' no existe.\n", table);
         return -1;
     }
 
@@ -1748,7 +1750,7 @@ void execute_sql(const char *query) {
         }
     }
 
-    executor_printf("UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
+    printf("UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
     unlock_database();
     return;
 }
