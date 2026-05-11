@@ -135,6 +135,11 @@ static void rebuild_all_indexes_from_disk(void) {
             rebuild_index_for_table(table_name);
 
             printf("Índice B+ Tree reconstruido para tabla: %s\n", table_name);
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "Índice B+ Tree reconstruido para tabla: %s\n", table_name);
+                executor_append_output(line);
+            }
         }
     }
 
@@ -205,6 +210,11 @@ static void build_table_key(const char *table, char *out, size_t size) {
 static int require_database_selected(void) {
     if (strcmp(current_database, "default") == 0) {
         printf("Error: no hay una base de datos seleccionada. Usa \\c nombre_base.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no hay una base de datos seleccionada. Usa \\c nombre_base.\n");
+            executor_append_output(line);
+        }
         return 0;
     }
 
@@ -214,11 +224,21 @@ static int require_database_selected(void) {
 static void do_insert(const char *table, const char *value) {
     if (!catalog_table_exists(table)) {
         printf("Error: la tabla '%s' no existe.\n", table);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: la tabla '%s' no existe.\n", table);
+            executor_append_output(line);
+        }
         return;
     }
 
     if (!global_bp) {
         printf("Error: Buffer Pool no inicializado.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: Buffer Pool no inicializado.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -228,6 +248,11 @@ static void do_insert(const char *table, const char *value) {
 
     if (fd < 0) {
         printf("Error al abrir tabla.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error al abrir tabla.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -235,6 +260,11 @@ static void do_insert(const char *table, const char *value) {
 
     if (!page) {
         printf("Error: no se pudo cargar la página en el Buffer Pool.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no se pudo cargar la página en el Buffer Pool.\n");
+            executor_append_output(line);
+        }
         buffer_invalidate_fd(global_bp, fd);
         close(fd);
         return;
@@ -545,6 +575,11 @@ static void do_update_where_id(const char *table, int id, const char *new_value)
     int fd = fm_open_table(full_table);
     if (fd < 0) {
         printf("Error al abrir tabla.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error al abrir tabla.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -972,6 +1007,11 @@ static int build_records_from_insert(const char *q, char *table) {
 
     if (!meta) {
         printf("Error: la tabla '%s' no existe.\n", table);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: la tabla '%s' no existe.\n", table);
+            executor_append_output(line);
+        }
         return -1;
     }
 
@@ -1151,6 +1191,11 @@ static void do_update_columns_where_id(const char *table, const char *set_text, 
 
     if (!meta) {
         printf("Error: metadata no encontrada.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: metadata no encontrada.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1158,6 +1203,11 @@ static void do_update_columns_where_id(const char *table, const char *set_text, 
 
     if (id_index < 0) {
         printf("Error: la tabla '%s' no tiene columna id.\n", table);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: la tabla '%s' no tiene columna id.\n", table);
+            executor_append_output(line);
+        }
         return;
     }
     char full_table[160];
@@ -1166,6 +1216,11 @@ static void do_update_columns_where_id(const char *table, const char *set_text, 
 
     if (fd < 0) {
         printf("Error al abrir tabla.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error al abrir tabla.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1264,6 +1319,11 @@ static void do_delete_all(const char *table) {
 
     if (fd < 0) {
         printf("Error al abrir tabla.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error al abrir tabla.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1423,33 +1483,38 @@ static void do_show_databases(void) {
 }
 
 static void do_help(void) {
-    printf("\n=========================================================\n");
-    printf("              MOTOR DB - COMANDOS DISPONIBLES            \n");
-    printf("=========================================================\n");
-    printf("GESTIÓN DE BASE DE DATOS:\n");
-    printf("  CREATE DATABASE <nombre> - Crea una nueva base de datos\n");
-    printf("  DROP DATABASE <nombre>   - Elimina una base de datos\n");
-    printf("  SHOW DATABASES           - Lista todas las bases de datos\n");
-    printf("  \\c <nombre>              - Conecta a una base de datos\n");
-    printf("  \\qdb                     - Sale de la base actual a default\n\n");
-    
-    printf("GESTIÓN DE TABLAS (DDL):\n");
-    printf("  SHOW TABLES              - Lista las tablas de la DB actual\n");
-    printf("  CREATE TABLE <tabla> ... - Crea una nueva tabla con esquema\n");
-    printf("  DROP TABLE <tabla>       - Elimina una tabla y su índice\n\n");
-    
-    printf("MANIPULACIÓN DE DATOS (DML):\n");
-    printf("  INSERT INTO <tabla> ...  - Inserta nuevos registros\n");
-    printf("  SELECT * FROM <tabla>... - Consulta registros (Soporta WHERE y JOIN)\n");
-    printf("  UPDATE <tabla> SET ...   - Actualiza registros (Requiere WHERE id = N)\n");
-    printf("  DELETE FROM <tabla>...   - Elimina registros\n\n");
-    
-    printf("TRANSACCIONES (MVCC):\n");
-    printf("  BEGIN                    - Inicia una transacción\n");
-    printf("  COMMIT                   - Consolida los cambios en disco\n");
-    printf("  ROLLBACK                 - Revierte los cambios de la transacción\n");
-    printf("=========================================================\n");
-    printf("  Escribe EXIT para desconectarte del servidor.\n\n");
+    // 1. Agrupamos todo el texto en una sola variable constante
+    const char *help_text = 
+        "\n=========================================================\n"
+        "              MOTOR DB - COMANDOS DISPONIBLES            \n"
+        "=========================================================\n"
+        "GESTION DE BASE DE DATOS:\n"
+        "  CREATE DATABASE <nombre> - Crea una nueva base de datos\n"
+        "  DROP DATABASE <nombre>   - Elimina una base de datos\n"
+        "  SHOW DATABASES           - Lista todas las bases de datos\n"
+        "  \\c <nombre>              - Conecta a una base de datos\n"
+        "  \\qdb                     - Sale de la base actual a default\n\n"
+        "GESTION DE TABLAS (DDL):\n"
+        "  SHOW TABLES              - Lista las tablas de la DB actual\n"
+        "  CREATE TABLE <tabla> ... - Crea una nueva tabla con esquema\n"
+        "  DROP TABLE <tabla>       - Elimina una tabla y su indice\n\n"
+        "MANIPULACION DE DATOS (DML):\n"
+        "  INSERT INTO <tabla> ...  - Inserta nuevos registros\n"
+        "  SELECT * FROM <tabla>... - Consulta registros (Soporta WHERE y JOIN)\n"
+        "  UPDATE <tabla> SET ...   - Actualiza registros (Requiere WHERE id = N)\n"
+        "  DELETE FROM <tabla>...   - Elimina registros\n\n"
+        "TRANSACCIONES (MVCC):\n"
+        "  BEGIN                    - Inicia una transaccion\n"
+        "  COMMIT                   - Consolida los cambios en disco\n"
+        "  ROLLBACK                 - Revierte los cambios de la transaccion\n"
+        "=========================================================\n"
+        "  Escribe EXIT para desconectarte del servidor.\n\n";
+
+    // 2. Imprimir en la consola del servidor (para ti)
+    printf("%s", help_text);
+
+    // 3. Cargar al buffer para enviar al cliente TCP (o Node.js Bridge)
+    executor_append_output(help_text);
 }
 
 const char *executor_get_current_database(void) {
