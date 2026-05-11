@@ -1,107 +1,58 @@
-# Motor DB en C
+📖 Guía de Comandos SQL
+El motor acepta una gramática específica procesada por un parser interno. Aquí los comandos disponibles:
 
-acenamiento con páginas de 4096 bytes
-- File Manager usando `pread` y `pwrite`
-- Buffer Pool básico
-- WAL básico
-- Transacciones: `BEGIN`, `COMMIT`, `ROLLBACK`
-- Recuperación básica al iniciar
-- Control de concurrencia con `pthread_mutex`
-- Catálogo de tablas
-- Parser/Executor SQL básico
-- Módulo NL2SQL simulado
-- Servidor TCP básico opcional
+Gestión de Bases de Datos
+CREATE DATABASE <nombre>; - Crea un nuevo esquema/carpeta.
 
-## para salir de la base de datos al general es 
-\qdb
+SHOW DATABASES; - Lista las bases de datos disponibles.
 
-## Compilar
+\\c <nombre>; - Conecta a una base de datos específica.
 
-```bash
-mkdir build
-cd build
-cmake ..
-make
-```
+\\qdb; - Regresa al entorno por defecto (default).
 
-## Ejecutar modo consola
+Operaciones con Tablas (DDL)
+CREATE TABLE <tabla> (<columnas>); - Soporta tipos como INT, VARCHAR(n), PRIMARY KEY y AUTO_INCREMENT.
 
-```bash
-./motor_db
-```
+SHOW TABLES; - Lista las tablas en la base de datos activa.
 
-## Comandos disponibles
+DROP TABLE <tabla>; - Elimina la tabla y sus índices asociados.
 
-```sql
+Manipulación de Datos (DML)
+INSERT INTO <tabla> (<columnas>) VALUES (<valores>); - Inserción de registros.
 
+SELECT * FROM <tabla>; - Escaneo completo de tabla.
 
-CREATE TABLE medico (id INT AUTO_INCREMENT PRIMARY KEY, nombre VARCHAR(100));
-INSERT INTO medico (nombre) VALUES ('Roberto');
-SELECT * FROM medico;
+SELECT * FROM <tabla> WHERE id = <N>; - Búsqueda rápida optimizada por índice B+ Tree.
 
+SELECT * FROM <t1> JOIN <t2>; - Operación de unión entre tablas por ID.
 
+UPDATE <tabla> SET <col> = <val> WHERE id = <N>; - Actualización de registros existentes (requiere espacios exactos en el comando).
 
+DELETE FROM <tabla> WHERE id = <N>; - Eliminación de registros específicos.
 
-CREATE TABLE usuarios;
-INSERT INTO usuarios VALUES Ana;
-SELECT * FROM usuarios;
-BEGIN;
-INSERT INTO usuarios VALUES Luis;
-COMMIT;
-BEGIN;
-INSERT INTO usuarios VALUES Pedro;
-ROLLBACK;
-NL muéstrame todos los usuarios
-EXIT;
-```sql
+Transacciones
+BEGIN; - Inicia una transacción global y un snapshot MVCC.
 
-CREATE TABLE usuarios;
-INSERT INTO usuarios VALUES Ana;
-INSERT INTO usuarios VALUES Luis;
-BEGIN;
-INSERT INTO usuarios VALUES Maria;
-ROLLBACK;
-SELECT * FROM usuarios;
-BEGIN;
-INSERT INTO usuarios VALUES Carlos;
-COMMIT;
-SELECT * FROM usuarios;
+COMMIT; - Aplica los cambios permanentemente y limpia buffers.
 
-Resultado correcto final:
+ROLLBACK; - Deshace los cambios de la transacción actual.
 
-Ana
-Luis
-Carlos
+Otros
+HELP;, \\h; o \\?; - Muestra el manual de ayuda detallado.
 
-## Ejecutar servidor TCP
-
-make clean
-make
-
-```bash
-./motor_db --server 5555
-```
-
-Desde otra terminal:
-
-```bash
-nc localhost 5555
-```
-
-## Estructura
-
-- `storage/`: páginas y manejo de archivos
-- `buffer/`: buffer pool
-- `transaction/`: transacciones, WAL y recuperación
-- `concurrency/`: bloqueos
-- `query/`: parser y executor
-- `catalog/`: metadatos
-- `nl/`: lenguaje natural a SQL
-- `network/`: servidor TCP
-- `utils/`: logger
+EXIT; - Cierra la conexión del socket.
 
 
-## PARA VER LOS USUARIO EN LA TERMINAL SE DEBE ENTRAR A LA MISMA CARPETA motor_db y colocar esto
-##  strings data/usuarios.tbl
 
-# esto mostrara los datos de los usuarios.tbl
+2. Ejecutar el Servidor (Motor)
+Abre una terminal y lanza el servidor indicando el puerto (asegúrate de que el puerto 5000 esté libre):
+
+Bash
+./motor_db 5000
+
+
+3. Ejecutar el Cliente de Consola
+Abre una segunda terminal y conéctate localmente:
+
+Bash
+./cliente 127.0.0.1 5000
