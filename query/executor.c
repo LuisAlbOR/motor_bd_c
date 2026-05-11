@@ -15,6 +15,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdarg.h>
 
 #define MAX_TABLE_INDEXES 32
 static BufferPool *global_bp = NULL;
@@ -160,6 +161,48 @@ void executor_append_output(const char *text) {
 
     strncat(output_buffer, text, output_buffer_size - strlen(output_buffer) - 1);
 }
+
+void executor_printf(const char *format, ...) {
+    va_list args;
+
+    // 1. Imprimir en la consola del servidor (para depuración local en WSL)
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+
+    // 2. Guardar en el buffer para enviar al cliente o Bridge de Node.js
+    if (!output_buffer || output_buffer_size <= 0) return;
+
+    size_t current_len = strlen(output_buffer);
+    size_t remaining_space = output_buffer_size - current_len - 1;
+
+    if (remaining_space <= 0) return;
+
+    va_start(args, format);
+    vsnprintf(output_buffer + current_len, remaining_space, format, args);
+    va_end(args);
+}
+
+void executor_printf(const char *format, ...) {
+    if (!output_buffer || output_buffer_size <= 0) return;
+
+    // Calculamos cuánto espacio libre queda en el buffer
+    size_t current_len = strlen(output_buffer);
+    size_t remaining_space = output_buffer_size - current_len - 1;
+
+    if (remaining_space <= 0) return;
+
+    // Usamos argumentos variables para formatear el string
+    va_list args;
+    va_start(args, format);
+    
+    // Escribimos directamente en la parte final del buffer
+    vsnprintf(output_buffer + current_len, remaining_space, format, args);
+    
+    va_end(args);
+}
+
+
 void executor_init(BufferPool *bp, Transaction *tx) {
     global_bp = bp;
     global_tx = tx;
@@ -213,12 +256,12 @@ static int require_database_selected(void) {
 
 static void do_insert(const char *table, const char *value) {
     if (!catalog_table_exists(table)) {
-        printf("Error: la tabla '%s' no existe.\n", table);
+        executor_printf("Error: la tabla '%s' no existe.\n", table);
         return;
     }
 
     if (!global_bp) {
-        printf("Error: Buffer Pool no inicializado.\n");
+        executor_printf("Error: Buffer Pool no inicializado.\n");
         return;
     }
 
@@ -227,14 +270,14 @@ static void do_insert(const char *table, const char *value) {
     int fd = fm_open_table(full_table);
 
     if (fd < 0) {
-        printf("Error al abrir tabla.\n");
+        executor_printf("Error al abrir tabla.\n");
         return;
     }
 
     Page *page = buffer_fetch_page(global_bp, fd, 0);
 
     if (!page) {
-        printf("Error: no se pudo cargar la página en el Buffer Pool.\n");
+        executor_printf("Error: no se pudo cargar la página en el Buffer Pool.\n");
         buffer_invalidate_fd(global_bp, fd);
         close(fd);
         return;
@@ -254,7 +297,7 @@ static void do_insert(const char *table, const char *value) {
     int page_id = 0;
 
     if (page_append_mvcc_record(page, value, tx_id) != 0) {
-        printf("Error: página llena.\n");
+        executor_printf("Error: página llena.\n");
         buffer_unpin_page(global_bp, fd, 0, 0);
         buffer_invalidate_fd(global_bp, fd);
         close(fd);
@@ -283,16 +326,14 @@ static void do_insert(const char *table, const char *value) {
     buffer_invalidate_fd(global_bp, fd);
     close(fd);
 
-    printf("Registro insertado en %s: %s\n", table, value);
+    executor_printf("Registro insertado en %s: %s\n", table, value);
 }
 
 static void do_select(const char *table) {
     char line[512];
 
     if (!catalog_table_exists(table)) {
-        snprintf(line, sizeof(line), "Error: la tabla '%s' no existe.\n", table);
-        printf("%s", line);
-        executor_append_output(line);
+        executor_printf("Error: la tabla '%s' no existe.\n", table);
         return;
     }
 
@@ -539,7 +580,7 @@ static void do_update_where_id(const char *table, int id, const char *new_value)
     snprintf(full_table, sizeof(full_table), "%s/%s", current_database, table);
     int fd = fm_open_table(full_table);
     if (fd < 0) {
-        printf("Error al abrir tabla.\n");
+        executor_printf("Error al abrir tabla.\n");
         return;
     }
 
@@ -966,7 +1007,7 @@ static int build_records_from_insert(const char *q, char *table) {
     TableMetadata *meta = catalog_get_table(table);
 
     if (!meta) {
-        printf("Error: la tabla '%s' no existe.\n", table);
+        executor_printf("Error: la tabla '%s' no existe.\n", table);
         return -1;
     }
 
@@ -1613,7 +1654,7 @@ void execute_sql(const char *query) {
 
     if (strchr(q, '(')) {
         if (parse_create_table_schema(q, &meta) != 0) {
-            printf("Error al interpretar CREATE TABLE.\n");
+            executor_printf("Error al interpretar CREATE TABLE.\n");
             unlock_database();
             return;
         }
@@ -1632,10 +1673,10 @@ void execute_sql(const char *query) {
             wal_write(log, r);
             wal_close(log);
 
-            printf("Tabla creada con esquema: %s\n", meta.table_name);
+            executor_printf("Tabla creada con esquema: %s\n", meta.table_name);
             catalog_describe_table(meta.table_name);
         } else {
-            printf("No se pudo crear la tabla.\n");
+            executor_printf("No se pudo crear la tabla.\n");
         }
 
         unlock_database();
@@ -1646,9 +1687,9 @@ void execute_sql(const char *query) {
         trim_semicolon(table);
 
         if (catalog_create_table(table) == 0) {
-            printf("Tabla creada: %s\n", table);
+            executor_printf("Tabla creada: %s\n", table);
         } else {
-            printf("No se pudo crear la tabla.\n");
+            executor_printf("No se pudo crear la tabla.\n");
         }
 
         unlock_database();
@@ -1664,7 +1705,7 @@ void execute_sql(const char *query) {
     /* INSERT moderno con columnas, uno o varios registros */
     if (strchr(q, '(')) {
         if (build_records_from_insert(q, table) != 0) {
-            printf("Error al interpretar INSERT.\n");
+            executor_printf("Error al interpretar INSERT.\n");
             unlock_database();
             return;
         }
@@ -1707,7 +1748,7 @@ void execute_sql(const char *query) {
         }
     }
 
-    printf("UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
+    executor_printf("UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
     unlock_database();
     return;
 }
@@ -1755,6 +1796,6 @@ if (sscanf(q, "SELECT * FROM %63s JOIN %63s", table, join_table) == 2) {
     return;
     }
 
-    printf("Consulta no reconocida.\n");
+    executor_printf("Consulta no reconocida.\n");
     unlock_database();
 }
