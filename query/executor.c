@@ -15,7 +15,6 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdarg.h>
 
 #define MAX_TABLE_INDEXES 32
 static BufferPool *global_bp = NULL;
@@ -161,30 +160,6 @@ void executor_append_output(const char *text) {
 
     strncat(output_buffer, text, output_buffer_size - strlen(output_buffer) - 1);
 }
-
-void executor_printf(const char *format, ...) {
-    va_list args;
-
-    // 1. Imprimir en la consola del servidor (para depuración local en WSL)
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
-
-    // 2. Guardar en el buffer para enviar al cliente o Bridge de Node.js
-    if (!output_buffer || output_buffer_size <= 0) return;
-
-    size_t current_len = strlen(output_buffer);
-    size_t remaining_space = output_buffer_size - current_len - 1;
-
-    if (remaining_space <= 0) return;
-
-    va_start(args, format);
-    vsnprintf(output_buffer + current_len, remaining_space, format, args);
-    va_end(args);
-}
-
-
-
 void executor_init(BufferPool *bp, Transaction *tx) {
     global_bp = bp;
     global_tx = tx;
@@ -309,6 +284,11 @@ static void do_insert(const char *table, const char *value) {
     close(fd);
 
     printf("Registro insertado en %s: %s\n", table, value);
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Registro insertado en %s: %s\n", table, value);
+        executor_append_output(line);
+    }
 }
 
 static void do_select(const char *table) {
@@ -1350,11 +1330,21 @@ static void ensure_database_folder(const char *db) {
 static void do_create_database(const char *db) {
     if (!db || strlen(db) == 0) {
         printf("Error: nombre de base de datos inválido.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: nombre de base de datos inválido.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
     ensure_database_folder(db);
     printf("Base de datos creada: %s\n", db);
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Base de datos creada: %s\n", db);
+        executor_append_output(line);
+    }
 }
 
 static void do_use_database(const char *db_name) {
@@ -1366,6 +1356,11 @@ static void do_use_database(const char *db_name) {
 
     if (!dir) {
         printf("Error: la base de datos '%s' no existe.\n", db_name);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: la base de datos '%s' no existe.\n", db_name);
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1375,6 +1370,11 @@ static void do_use_database(const char *db_name) {
     current_database[sizeof(current_database) - 1] = '\0';
 
     printf("Usando base de datos: %s\n", current_database);
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Usando base de datos: %s\n", current_database);
+        executor_append_output(line);
+    }
 }
 
 static void do_show_databases(void) {
@@ -1382,6 +1382,11 @@ static void do_show_databases(void) {
 
     if (!dir) {
         printf("No hay bases de datos.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "No hay bases de datos.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1389,6 +1394,11 @@ static void do_show_databases(void) {
     struct stat st;
 
     printf("Bases de datos:\n");
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Bases de datos:\n");
+        executor_append_output(line);
+    }
 
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 ||
@@ -1401,6 +1411,11 @@ static void do_show_databases(void) {
 
         if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode)) {
             printf("  %s\n", entry->d_name);
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "  %s\n", entry->d_name);
+                executor_append_output(line);
+            }
         }
     }
 
@@ -1415,6 +1430,11 @@ const char *executor_get_current_database(void) {
 static void do_show_tables_current_database(void) {
     if (strcmp(current_database, "default") == 0) {
         printf("Error: no hay una base de datos seleccionada. Usa \\c nombre_base.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no hay una base de datos seleccionada. Usa \\c nombre_base.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1425,11 +1445,21 @@ static void do_show_tables_current_database(void) {
 
     if (!dir) {
         printf("Error: no se pudo abrir la base de datos '%s'.\n", current_database);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no se pudo abrir la base de datos '%s'.\n", current_database);
+            executor_append_output(line);
+        }
         return;
     }
 
     struct dirent *entry;
     printf("Tablas en base de datos '%s':\n", current_database);
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Tablas en base de datos '%s':\n", current_database);
+        executor_append_output(line);
+    }
 
     int count = 0;
 
@@ -1445,12 +1475,22 @@ static void do_show_tables_current_database(void) {
             if (dot) *dot = '\0';
 
             printf("  %s\n", table_name);
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "  %s\n", table_name);
+                executor_append_output(line);
+            }
             count++;
         }
     }
 
     if (count == 0) {
         printf("  No hay tablas.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "  No hay tablas.\n");
+            executor_append_output(line);
+        }
     }
 
     closedir(dir);
@@ -1460,16 +1500,31 @@ static void do_show_tables_current_database(void) {
 static void do_drop_database(const char *db_name) {
     if (!db_name || strlen(db_name) == 0) {
         printf("Error: nombre de base de datos inválido.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: nombre de base de datos inválido.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
     if (strcmp(db_name, "default") == 0) {
         printf("Error: no puedes eliminar la base de datos default.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no puedes eliminar la base de datos default.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
     if (strcmp(current_database, db_name) == 0) {
         printf("Error: no puedes eliminar la base de datos que estás usando. Usa \\qdb primero.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no puedes eliminar la base de datos que estás usando. Usa \\qdb primero.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1480,6 +1535,11 @@ static void do_drop_database(const char *db_name) {
 
     if (!dir) {
         printf("Error: la base de datos '%s' no existe.\n", db_name);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: la base de datos '%s' no existe.\n", db_name);
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1500,8 +1560,18 @@ static void do_drop_database(const char *db_name) {
 
     if (rmdir(path) == 0) {
         printf("Base de datos eliminada: %s\n", db_name);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Base de datos eliminada: %s\n", db_name);
+            executor_append_output(line);
+        }
     } else {
         printf("Error: no se pudo eliminar la base de datos '%s'.\n", db_name);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Error: no se pudo eliminar la base de datos '%s'.\n", db_name);
+            executor_append_output(line);
+        }
     }
 }
 
@@ -1546,11 +1616,21 @@ void execute_sql(const char *query) {
         strcpy(current_database, "default");
         ensure_database_folder(current_database);
         printf("Saliste de la base actual. Ahora estás en: default\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Saliste de la base actual. Ahora estás en: default\n");
+            executor_append_output(line);
+        }
         return;
     }
 
     if (!parser_parse(query, &parsed)) {
         printf("Consulta SQL inválida o no segura.\n");
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "Consulta SQL inválida o no segura.\n");
+            executor_append_output(line);
+        }
         return;
     }
 
@@ -1584,6 +1664,11 @@ void execute_sql(const char *query) {
     current_snapshot = mvcc_create_snapshot(current_mvcc_tx);
 
     printf("MVCC BEGIN tx=%d\n", current_mvcc_tx);
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "MVCC BEGIN tx=%d\n", current_mvcc_tx);
+        executor_append_output(line);
+    }
     unlock_database();
     return;
     }
@@ -1597,6 +1682,11 @@ void execute_sql(const char *query) {
     if (current_mvcc_tx != 0) {
         mvcc_commit(current_mvcc_tx);
         printf("MVCC COMMIT tx=%d\n", current_mvcc_tx);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "MVCC COMMIT tx=%d\n", current_mvcc_tx);
+            executor_append_output(line);
+        }
         current_mvcc_tx = 0;
     }
 
@@ -1616,6 +1706,11 @@ void execute_sql(const char *query) {
     if (current_mvcc_tx != 0) {
         mvcc_abort(current_mvcc_tx);
         printf("MVCC ROLLBACK tx=%d\n", current_mvcc_tx);
+        {
+            char line[512];
+            snprintf(line, sizeof(line), "MVCC ROLLBACK tx=%d\n", current_mvcc_tx);
+            executor_append_output(line);
+        }
         current_mvcc_tx = 0;
     }
 
@@ -1638,7 +1733,12 @@ void execute_sql(const char *query) {
 
     if (strchr(q, '(')) {
         if (parse_create_table_schema(q, &meta) != 0) {
-            executor_printf("Error al interpretar CREATE TABLE.\n");
+            printf("Error al interpretar CREATE TABLE.\n");
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "Error al interpretar CREATE TABLE.\n");
+                executor_append_output(line);
+            }
             unlock_database();
             return;
         }
@@ -1657,10 +1757,20 @@ void execute_sql(const char *query) {
             wal_write(log, r);
             wal_close(log);
 
-            executor_printf("Tabla creada con esquema: %s\n", meta.table_name);
+            printf("Tabla creada con esquema: %s\n", meta.table_name);
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "Tabla creada con esquema: %s\n", meta.table_name);
+                executor_append_output(line);
+            }
             catalog_describe_table(meta.table_name);
         } else {
-            executor_printf("No se pudo crear la tabla.\n");
+            printf("No se pudo crear la tabla.\n");
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "No se pudo crear la tabla.\n");
+                executor_append_output(line);
+            }
         }
 
         unlock_database();
@@ -1671,9 +1781,19 @@ void execute_sql(const char *query) {
         trim_semicolon(table);
 
         if (catalog_create_table(table) == 0) {
-            executor_printf("Tabla creada: %s\n", table);
+            printf("Tabla creada: %s\n", table);
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "Tabla creada: %s\n", table);
+                executor_append_output(line);
+            }
         } else {
-            executor_printf("No se pudo crear la tabla.\n");
+            printf("No se pudo crear la tabla.\n");
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "No se pudo crear la tabla.\n");
+                executor_append_output(line);
+            }
         }
 
         unlock_database();
@@ -1689,7 +1809,12 @@ void execute_sql(const char *query) {
     /* INSERT moderno con columnas, uno o varios registros */
     if (strchr(q, '(')) {
         if (build_records_from_insert(q, table) != 0) {
-            executor_printf("Error al interpretar INSERT.\n");
+            printf("Error al interpretar INSERT.\n");
+            {
+                char line[512];
+                snprintf(line, sizeof(line), "Error al interpretar INSERT.\n");
+                executor_append_output(line);
+            }
             unlock_database();
             return;
         }
@@ -1733,6 +1858,11 @@ void execute_sql(const char *query) {
     }
 
     printf("UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "UPDATE inválido. Usa: UPDATE tabla SET columna = valor WHERE id = N;\n");
+        executor_append_output(line);
+    }
     unlock_database();
     return;
 }
@@ -1780,6 +1910,11 @@ if (sscanf(q, "SELECT * FROM %63s JOIN %63s", table, join_table) == 2) {
     return;
     }
 
-    executor_printf("Consulta no reconocida.\n");
+    printf("Consulta no reconocida.\n");
+    {
+        char line[512];
+        snprintf(line, sizeof(line), "Consulta no reconocida.\n");
+        executor_append_output(line);
+    }
     unlock_database();
 }
