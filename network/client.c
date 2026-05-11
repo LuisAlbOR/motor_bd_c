@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define CLIENT_BUFFER_SIZE 1024
+#define CLIENT_BUFFER_SIZE 4096
 
 int main(int argc, char **argv) {
     if (argc != 3) {
