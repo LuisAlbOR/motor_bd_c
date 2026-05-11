@@ -1422,6 +1422,36 @@ static void do_show_databases(void) {
     closedir(dir);
 }
 
+static void do_help(void) {
+    printf("\n=========================================================\n");
+    printf("              MOTOR DB - COMANDOS DISPONIBLES            \n");
+    printf("=========================================================\n");
+    printf("GESTIÓN DE BASE DE DATOS:\n");
+    printf("  CREATE DATABASE <nombre> - Crea una nueva base de datos\n");
+    printf("  DROP DATABASE <nombre>   - Elimina una base de datos\n");
+    printf("  SHOW DATABASES           - Lista todas las bases de datos\n");
+    printf("  \\c <nombre>              - Conecta a una base de datos\n");
+    printf("  \\qdb                     - Sale de la base actual a default\n\n");
+    
+    printf("GESTIÓN DE TABLAS (DDL):\n");
+    printf("  SHOW TABLES              - Lista las tablas de la DB actual\n");
+    printf("  CREATE TABLE <tabla> ... - Crea una nueva tabla con esquema\n");
+    printf("  DROP TABLE <tabla>       - Elimina una tabla y su índice\n\n");
+    
+    printf("MANIPULACIÓN DE DATOS (DML):\n");
+    printf("  INSERT INTO <tabla> ...  - Inserta nuevos registros\n");
+    printf("  SELECT * FROM <tabla>... - Consulta registros (Soporta WHERE y JOIN)\n");
+    printf("  UPDATE <tabla> SET ...   - Actualiza registros (Requiere WHERE id = N)\n");
+    printf("  DELETE FROM <tabla>...   - Elimina registros\n\n");
+    
+    printf("TRANSACCIONES (MVCC):\n");
+    printf("  BEGIN                    - Inicia una transacción\n");
+    printf("  COMMIT                   - Consolida los cambios en disco\n");
+    printf("  ROLLBACK                 - Revierte los cambios de la transacción\n");
+    printf("=========================================================\n");
+    printf("  Escribe EXIT para desconectarte del servidor.\n\n");
+}
+
 const char *executor_get_current_database(void) {
     return current_database;
 }
@@ -1623,6 +1653,12 @@ void execute_sql(const char *query) {
         }
         return;
     }
+
+    if (strcasecmp(quick, "HELP") == 0 || strcmp(quick, "\\h") == 0 || strcmp(quick, "\\?") == 0) {
+        do_help();
+        return;
+    }
+
 
     if (!parser_parse(query, &parsed)) {
         printf("Consulta SQL inválida o no segura.\n");
