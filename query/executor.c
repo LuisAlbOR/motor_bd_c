@@ -183,24 +183,6 @@ void executor_printf(const char *format, ...) {
     va_end(args);
 }
 
-void executor_printf(const char *format, ...) {
-    if (!output_buffer || output_buffer_size <= 0) return;
-
-    // Calculamos cuánto espacio libre queda en el buffer
-    size_t current_len = strlen(output_buffer);
-    size_t remaining_space = output_buffer_size - current_len - 1;
-
-    if (remaining_space <= 0) return;
-
-    // Usamos argumentos variables para formatear el string
-    va_list args;
-    va_start(args, format);
-    
-    // Escribimos directamente en la parte final del buffer
-    vsnprintf(output_buffer + current_len, remaining_space, format, args);
-    
-    va_end(args);
-}
 
 
 void executor_init(BufferPool *bp, Transaction *tx) {
